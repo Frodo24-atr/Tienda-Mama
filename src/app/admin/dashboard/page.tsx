@@ -68,6 +68,7 @@ const orderStatuses: OrderStatus[] = ['pending','confirmed','preparing','shipped
 export default function AdminDashboard() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('products');
+  const [authReady, setAuthReady] = useState(false);
 
   // Products
   const [products, setProducts] = useState<Product[]>([]);
@@ -92,13 +93,21 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (IS_DEMO) {
       if (sessionStorage.getItem('demo-admin') !== '1') router.replace('/admin');
+      setAuthReady(true);
       return;
     }
     const unsub = onAuthStateChanged(auth, (user) => {
       if (!user) router.replace('/admin');
+      else setAuthReady(true);
     });
     return unsub;
   }, [router]);
+
+  if (!authReady) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <span className="animate-spin rounded-full h-8 w-8 border-2 border-stone-300 border-t-stone-900" />
+    </div>
+  );
 
   useEffect(() => { loadProducts(); }, []);
   useEffect(() => { if (tab === 'orders') loadOrders(); }, [tab]);
