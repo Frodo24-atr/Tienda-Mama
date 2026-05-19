@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+
+const IS_DEMO = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID === 'placeholder-project' ||
+  !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 import {
   getAllProductsAdmin,
   createProduct,
@@ -86,6 +89,10 @@ export default function AdminDashboard() {
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
 
   useEffect(() => {
+    if (IS_DEMO) {
+      if (sessionStorage.getItem('demo-admin') !== '1') router.replace('/admin');
+      return;
+    }
     const unsub = onAuthStateChanged(auth, (user) => {
       if (!user) router.replace('/admin');
     });
@@ -203,7 +210,7 @@ export default function AdminDashboard() {
               <Plus size={16} /> Nueva prenda
             </button>
           )}
-          <button onClick={() => { signOut(auth); router.push('/admin'); }} className="flex items-center gap-2 text-stone-500 hover:text-stone-800 text-sm transition-colors px-3 py-2.5 rounded-xl border border-stone-200">
+          <button onClick={() => { if (IS_DEMO) { sessionStorage.removeItem('demo-admin'); } else { signOut(auth); } router.push('/admin'); }} className="flex items-center gap-2 text-stone-500 hover:text-stone-800 text-sm transition-colors px-3 py-2.5 rounded-xl border border-stone-200">
             <LogOut size={16} /> Salir
           </button>
         </div>
