@@ -103,14 +103,14 @@ export default function AdminDashboard() {
     return unsub;
   }, [router]);
 
+  useEffect(() => { if (authReady) loadProducts(); }, [authReady]);
+  useEffect(() => { if (authReady && tab === 'orders') loadOrders(); }, [authReady, tab]);
+
   if (!authReady) return (
     <div className="min-h-screen flex items-center justify-center">
       <span className="animate-spin rounded-full h-8 w-8 border-2 border-stone-300 border-t-stone-900" />
     </div>
   );
-
-  useEffect(() => { loadProducts(); }, []);
-  useEffect(() => { if (tab === 'orders') loadOrders(); }, [tab]);
 
   const loadProducts = async () => {
     setLoadingProducts(true);
