@@ -11,6 +11,7 @@ import {
   deleteProduct,
   markProductSold,
 } from '@/lib/products';
+import { DEMO_PRODUCTS } from '@/lib/demo-data';
 import {
   getAllOrders,
   updateOrderStatus,

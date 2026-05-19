@@ -109,6 +109,12 @@ export async function createProduct(
   data: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'images'>,
   imageFiles: File[]
 ): Promise<string> {
+  if (IS_DEMO) {
+    const id = `demo-${Date.now()}`;
+    const images = imageFiles.map((f) => URL.createObjectURL(f));
+    DEMO_PRODUCTS.unshift({ id, ...data, images, createdAt: new Date(), updatedAt: new Date() });
+    return id;
+  }
   const docRef = await addDoc(collection(db, COLLECTION), {
     ...data,
     images: [],
@@ -127,6 +133,19 @@ export async function updateProduct(
   data: Partial<Omit<Product, 'id' | 'createdAt'>>,
   newImageFiles?: File[]
 ): Promise<void> {
+  if (IS_DEMO) {
+    const idx = DEMO_PRODUCTS.findIndex((p) => p.id === id);
+    if (idx !== -1) {
+      const newImages = (newImageFiles ?? []).map((f) => URL.createObjectURL(f));
+      DEMO_PRODUCTS[idx] = {
+        ...DEMO_PRODUCTS[idx],
+        ...data,
+        images: [...(data.images ?? DEMO_PRODUCTS[idx].images), ...newImages],
+        updatedAt: new Date(),
+      };
+    }
+    return;
+  }
   const docRef = doc(db, COLLECTION, id);
   const updates: Record<string, unknown> = { ...data, updatedAt: serverTimestamp() };
   if (newImageFiles && newImageFiles.length > 0) {
@@ -137,6 +156,11 @@ export async function updateProduct(
 }
 
 export async function deleteProduct(id: string, images: string[]): Promise<void> {
+  if (IS_DEMO) {
+    const idx = DEMO_PRODUCTS.findIndex((p) => p.id === id);
+    if (idx !== -1) DEMO_PRODUCTS.splice(idx, 1);
+    return;
+  }
   for (const url of images) {
     try { await deleteObject(ref(storage, url)); } catch {}
   }
@@ -144,6 +168,11 @@ export async function deleteProduct(id: string, images: string[]): Promise<void>
 }
 
 export async function markProductSold(id: string): Promise<void> {
+  if (IS_DEMO) {
+    const p = DEMO_PRODUCTS.find((p) => p.id === id);
+    if (p) { p.available = false; p.stock = 0; }
+    return;
+  }
   await updateDoc(doc(db, COLLECTION, id), {
     available: false,
     stock: 0,
