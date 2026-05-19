@@ -1,27 +1,52 @@
 import {
-  collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, Timestamp, serverTimestamp,
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  Timestamp,
+  serverTimestamp,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from 'firebase/storage';
 import { db, storage } from './firebase';
 import { Product, Filters } from '@/types';
+import { DEMO_PRODUCTS } from './demo-data';
 
 const COLLECTION = 'products';
+const IS_DEMO = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID === 'placeholder-project' ||
+  !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
 export async function getProducts(filters?: Partial<Filters>): Promise<Product[]> {
-  const q = query(
-    collection(db, COLLECTION),
-    where('available', '==', true),
-    where('stock', '>', 0),
-    orderBy('stock'),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-  let products = snapshot.docs.map((doc) => ({
-    id: doc.id, ...doc.data(),
-    createdAt: (doc.data().createdAt as Timestamp)?.toDate() ?? new Date(),
-    updatedAt: (doc.data().updatedAt as Timestamp)?.toDate() ?? new Date(),
-  })) as Product[];
+  let products: Product[];
+
+  if (IS_DEMO) {
+    products = DEMO_PRODUCTS.filter((p) => p.available && p.stock > 0);
+  } else {
+    const q = query(
+      collection(db, COLLECTION),
+      where('available', '==', true),
+      where('stock', '>', 0),
+      orderBy('stock'),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    products = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() ?? new Date(),
+      updatedAt: (doc.data().updatedAt as Timestamp)?.toDate() ?? new Date(),
+    })) as Product[];
+  }
 
   if (filters) {
     if (filters.category) products = products.filter((p) => p.category === filters.category);
@@ -30,32 +55,40 @@ export async function getProducts(filters?: Partial<Filters>): Promise<Product[]
     if (filters.condition) products = products.filter((p) => p.condition === filters.condition);
     if (filters.search) {
       const s = filters.search.toLowerCase();
-      products = products.filter((p) =>
-        p.name.toLowerCase().includes(s) || p.brand.toLowerCase().includes(s) || p.description.toLowerCase().includes(s)
+      products = products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(s) ||
+          p.brand.toLowerCase().includes(s) ||
+          p.description.toLowerCase().includes(s)
       );
     }
     if (filters.minPrice) products = products.filter((p) => p.price >= Number(filters.minPrice));
     if (filters.maxPrice) products = products.filter((p) => p.price <= Number(filters.maxPrice));
   }
+
   return products;
 }
 
 export async function getAllProductsAdmin(): Promise<Product[]> {
+  if (IS_DEMO) return DEMO_PRODUCTS;
   const q = query(collection(db, COLLECTION), orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map((doc) => ({
-    id: doc.id, ...doc.data(),
+    id: doc.id,
+    ...doc.data(),
     createdAt: (doc.data().createdAt as Timestamp)?.toDate() ?? new Date(),
     updatedAt: (doc.data().updatedAt as Timestamp)?.toDate() ?? new Date(),
   })) as Product[];
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
+  if (IS_DEMO) return DEMO_PRODUCTS.find((p) => p.id === id) ?? null;
   const docRef = doc(db, COLLECTION, id);
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
   return {
-    id: docSnap.id, ...docSnap.data(),
+    id: docSnap.id,
+    ...docSnap.data(),
     createdAt: (docSnap.data().createdAt as Timestamp)?.toDate() ?? new Date(),
     updatedAt: (docSnap.data().updatedAt as Timestamp)?.toDate() ?? new Date(),
   } as Product;
@@ -77,11 +110,14 @@ export async function createProduct(
   imageFiles: File[]
 ): Promise<string> {
   const docRef = await addDoc(collection(db, COLLECTION), {
-    ...data, images: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    ...data,
+    images: [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
   if (imageFiles.length > 0) {
-    const urls = await uploadProductImages(imageFiles, docRef.id);
-    await updateDoc(docRef, { images: urls });
+    const imageUrls = await uploadProductImages(imageFiles, docRef.id);
+    await updateDoc(docRef, { images: imageUrls });
   }
   return docRef.id;
 }
@@ -108,10 +144,18 @@ export async function deleteProduct(id: string, images: string[]): Promise<void>
 }
 
 export async function markProductSold(id: string): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), { available: false, stock: 0, updatedAt: serverTimestamp() });
+  await updateDoc(doc(db, COLLECTION, id), {
+    available: false,
+    stock: 0,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function decrementStock(id: string, currentStock: number): Promise<void> {
   const newStock = currentStock - 1;
-  await updateDoc(doc(db, COLLECTION, id), { stock: newStock, available: newStock > 0, updatedAt: serverTimestamp() });
+  await updateDoc(doc(db, COLLECTION, id), {
+    stock: newStock,
+    available: newStock > 0,
+    updatedAt: serverTimestamp(),
+  });
 }
