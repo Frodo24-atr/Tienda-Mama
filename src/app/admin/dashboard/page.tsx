@@ -4,9 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-
-const IS_DEMO = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID === 'placeholder-project' ||
-  !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 import {
   getAllProductsAdmin,
   createProduct,
@@ -32,6 +29,9 @@ import {
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const IS_DEMO = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID === 'placeholder-project' ||
+  !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
 type Tab = 'products' | 'orders';
 type FormMode = 'none' | 'create' | 'edit';
