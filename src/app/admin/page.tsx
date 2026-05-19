@@ -4,8 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { Lock } from 'lucide-react';
+import { Lock, FlaskConical } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const IS_DEMO = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID === 'placeholder-project' ||
+  !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+const DEMO_PASSWORD = 'solanomoda2024';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -17,13 +22,28 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/admin/dashboard');
+      if (IS_DEMO) {
+        // Modo demo: contraseña fija para pruebas locales
+        if (password === DEMO_PASSWORD) {
+          sessionStorage.setItem('demo-admin', '1');
+          router.push('/admin/dashboard');
+        } else {
+          toast.error(`Contraseña demo incorrecta. Usá: ${DEMO_PASSWORD}`);
+        }
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+        router.push('/admin/dashboard');
+      }
     } catch {
       toast.error('Email o contraseña incorrectos');
     } finally {
       setLoading(false);
     }
+  };
+
+  const enterDemo = () => {
+    sessionStorage.setItem('demo-admin', '1');
+    router.push('/admin/dashboard');
   };
 
   return (
@@ -35,29 +55,44 @@ export default function AdminLoginPage() {
           </div>
           <h1 className="text-2xl font-bold text-stone-900">Panel Administración</h1>
           <p className="text-stone-500 text-sm mt-1">Solano Moda</p>
+          {IS_DEMO && (
+            <span className="inline-block mt-2 text-xs bg-amber-100 text-amber-800 font-semibold px-3 py-1 rounded-full">
+              Modo demo — Firebase no configurado
+            </span>
+          )}
         </div>
 
         <form onSubmit={handleLogin} className="bg-white rounded-2xl border border-stone-100 shadow-sm p-8 space-y-5">
+          {!IS_DEMO && (
+            <div>
+              <label className="text-xs font-semibold text-stone-500 uppercase tracking-wider block mb-1.5">Email</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="tu@email.com"
+              />
+            </div>
+          )}
           <div>
-            <label className="text-xs font-semibold text-stone-500 uppercase tracking-wider block mb-1.5">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-              placeholder="admin@solanomoda.com"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-stone-500 uppercase tracking-wider block mb-1.5">Contraseña</label>
+            <label className="text-xs font-semibold text-stone-500 uppercase tracking-wider block mb-1.5">
+              {IS_DEMO ? 'Contraseña demo' : 'Contraseña'}
+            </label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              placeholder={IS_DEMO ? 'solanomoda2024' : '••••••••'}
             />
+            {IS_DEMO && (
+              <p className="text-xs text-stone-400 mt-1">
+                Contraseña de prueba: <code className="bg-stone-100 px-1 rounded">solanomoda2024</code>
+              </p>
+            )}
           </div>
           <button
             type="submit"
@@ -70,7 +105,24 @@ export default function AdminLoginPage() {
               'Ingresar'
             )}
           </button>
+
+          {IS_DEMO && (
+            <button
+              type="button"
+              onClick={enterDemo}
+              className="w-full flex items-center justify-center gap-2 border border-stone-200 text-stone-600 font-medium py-3 rounded-xl hover:bg-stone-50 transition-colors text-sm"
+            >
+              <FlaskConical size={15} />
+              Entrar directo al demo
+            </button>
+          )}
         </form>
+
+        {IS_DEMO && (
+          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
+            <strong>Modo demo activo.</strong> Los cambios no se guardan. Configurá Firebase para activar el admin real.
+          </div>
+        )}
       </div>
     </div>
   );

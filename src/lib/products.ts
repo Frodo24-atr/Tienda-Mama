@@ -20,39 +20,39 @@ import {
 } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { Product, Filters } from '@/types';
+import { DEMO_PRODUCTS } from './demo-data';
 
 const COLLECTION = 'products';
+const IS_DEMO = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID === 'placeholder-project' ||
+  !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
 export async function getProducts(filters?: Partial<Filters>): Promise<Product[]> {
-  let q = query(
-    collection(db, COLLECTION),
-    where('available', '==', true),
-    where('stock', '>', 0),
-    orderBy('stock'),
-    orderBy('createdAt', 'desc')
-  );
+  let products: Product[];
 
-  const snapshot = await getDocs(q);
-  let products = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: (doc.data().createdAt as Timestamp)?.toDate() ?? new Date(),
-    updatedAt: (doc.data().updatedAt as Timestamp)?.toDate() ?? new Date(),
-  })) as Product[];
+  if (IS_DEMO) {
+    products = DEMO_PRODUCTS.filter((p) => p.available && p.stock > 0);
+  } else {
+    const q = query(
+      collection(db, COLLECTION),
+      where('available', '==', true),
+      where('stock', '>', 0),
+      orderBy('stock'),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    products = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: (doc.data().createdAt as Timestamp)?.toDate() ?? new Date(),
+      updatedAt: (doc.data().updatedAt as Timestamp)?.toDate() ?? new Date(),
+    })) as Product[];
+  }
 
   if (filters) {
-    if (filters.category) {
-      products = products.filter((p) => p.category === filters.category);
-    }
-    if (filters.gender) {
-      products = products.filter((p) => p.gender === filters.gender);
-    }
-    if (filters.size) {
-      products = products.filter((p) => p.size === filters.size);
-    }
-    if (filters.condition) {
-      products = products.filter((p) => p.condition === filters.condition);
-    }
+    if (filters.category) products = products.filter((p) => p.category === filters.category);
+    if (filters.gender) products = products.filter((p) => p.gender === filters.gender);
+    if (filters.size) products = products.filter((p) => p.size === filters.size);
+    if (filters.condition) products = products.filter((p) => p.condition === filters.condition);
     if (filters.search) {
       const s = filters.search.toLowerCase();
       products = products.filter(
@@ -62,18 +62,15 @@ export async function getProducts(filters?: Partial<Filters>): Promise<Product[]
           p.description.toLowerCase().includes(s)
       );
     }
-    if (filters.minPrice) {
-      products = products.filter((p) => p.price >= Number(filters.minPrice));
-    }
-    if (filters.maxPrice) {
-      products = products.filter((p) => p.price <= Number(filters.maxPrice));
-    }
+    if (filters.minPrice) products = products.filter((p) => p.price >= Number(filters.minPrice));
+    if (filters.maxPrice) products = products.filter((p) => p.price <= Number(filters.maxPrice));
   }
 
   return products;
 }
 
 export async function getAllProductsAdmin(): Promise<Product[]> {
+  if (IS_DEMO) return DEMO_PRODUCTS;
   const q = query(collection(db, COLLECTION), orderBy('createdAt', 'desc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map((doc) => ({
@@ -85,6 +82,7 @@ export async function getAllProductsAdmin(): Promise<Product[]> {
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
+  if (IS_DEMO) return DEMO_PRODUCTS.find((p) => p.id === id) ?? null;
   const docRef = doc(db, COLLECTION, id);
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
@@ -102,8 +100,7 @@ export async function uploadProductImages(files: File[], productId: string): Pro
     const file = files[i];
     const storageRef = ref(storage, `products/${productId}/${Date.now()}_${i}_${file.name}`);
     await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
-    urls.push(url);
+    urls.push(await getDownloadURL(storageRef));
   }
   return urls;
 }
@@ -118,12 +115,10 @@ export async function createProduct(
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-
   if (imageFiles.length > 0) {
     const imageUrls = await uploadProductImages(imageFiles, docRef.id);
     await updateDoc(docRef, { images: imageUrls });
   }
-
   return docRef.id;
 }
 
@@ -134,24 +129,16 @@ export async function updateProduct(
 ): Promise<void> {
   const docRef = doc(db, COLLECTION, id);
   const updates: Record<string, unknown> = { ...data, updatedAt: serverTimestamp() };
-
   if (newImageFiles && newImageFiles.length > 0) {
     const newUrls = await uploadProductImages(newImageFiles, id);
-    const existing = data.images ?? [];
-    updates.images = [...existing, ...newUrls];
+    updates.images = [...(data.images ?? []), ...newUrls];
   }
-
   await updateDoc(docRef, updates);
 }
 
 export async function deleteProduct(id: string, images: string[]): Promise<void> {
   for (const url of images) {
-    try {
-      const imageRef = ref(storage, url);
-      await deleteObject(imageRef);
-    } catch {
-      // ignore missing files
-    }
+    try { await deleteObject(ref(storage, url)); } catch {}
   }
   await deleteDoc(doc(db, COLLECTION, id));
 }
