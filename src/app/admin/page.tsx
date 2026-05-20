@@ -32,6 +32,7 @@ export default function AdminLoginPage() {
         }
       } else {
         await signInWithEmailAndPassword(auth, email, password);
+        localStorage.setItem('solano-admin', '1');
         router.push('/admin/dashboard');
       }
     } catch {

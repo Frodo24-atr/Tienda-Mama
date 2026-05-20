@@ -93,15 +93,31 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (IS_DEMO) {
       if (sessionStorage.getItem('demo-admin') !== '1') router.replace('/admin');
-      setAuthReady(true);
+      else setAuthReady(true);
       return;
     }
+    // If localStorage flag is set the user just logged in — show dashboard immediately
+    // and verify Firebase in background
+    if (localStorage.getItem('solano-admin') === '1') {
+      setAuthReady(true);
+      auth.authStateReady().then(() => {
+        if (!auth.currentUser) {
+          localStorage.removeItem('solano-admin');
+          router.replace('/admin');
+        }
+      });
+      return;
+    }
+    // No flag — check Firebase directly (e.g. page refresh after session)
     let mounted = true;
-    // authStateReady waits until Firebase has fully restored session from storage
     auth.authStateReady().then(() => {
       if (!mounted) return;
-      if (auth.currentUser) setAuthReady(true);
-      else router.replace('/admin');
+      if (auth.currentUser) {
+        localStorage.setItem('solano-admin', '1');
+        setAuthReady(true);
+      } else {
+        router.replace('/admin');
+      }
     });
     return () => { mounted = false; };
   }, [router]);
@@ -223,7 +239,7 @@ export default function AdminDashboard() {
               <Plus size={16} /> Nueva prenda
             </button>
           )}
-          <button onClick={() => { if (IS_DEMO) { sessionStorage.removeItem('demo-admin'); } else { signOut(auth); } router.push('/admin'); }} className="flex items-center gap-2 text-stone-500 hover:text-stone-800 text-sm transition-colors px-3 py-2.5 rounded-xl border border-stone-200">
+          <button onClick={() => { if (IS_DEMO) { sessionStorage.removeItem('demo-admin'); } else { localStorage.removeItem('solano-admin'); signOut(auth); } router.push('/admin'); }} className="flex items-center gap-2 text-stone-500 hover:text-stone-800 text-sm transition-colors px-3 py-2.5 rounded-xl border border-stone-200">
             <LogOut size={16} /> Salir
           </button>
         </div>
