@@ -96,11 +96,14 @@ export default function AdminDashboard() {
       setAuthReady(true);
       return;
     }
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) router.replace('/admin');
-      else setAuthReady(true);
+    let mounted = true;
+    // authStateReady waits until Firebase has fully restored session from storage
+    auth.authStateReady().then(() => {
+      if (!mounted) return;
+      if (auth.currentUser) setAuthReady(true);
+      else router.replace('/admin');
     });
-    return unsub;
+    return () => { mounted = false; };
   }, [router]);
 
   useEffect(() => { if (authReady) loadProducts(); }, [authReady]);
