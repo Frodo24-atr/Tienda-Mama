@@ -35,17 +35,17 @@ export async function getProducts(filters?: Partial<Filters>): Promise<Product[]
     const q = query(
       collection(db, COLLECTION),
       where('available', '==', true),
-      where('stock', '>', 0),
-      orderBy('stock'),
       orderBy('createdAt', 'desc')
     );
     const snapshot = await getDocs(q);
-    products = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: (doc.data().createdAt as Timestamp)?.toDate() ?? new Date(),
-      updatedAt: (doc.data().updatedAt as Timestamp)?.toDate() ?? new Date(),
-    })) as Product[];
+    products = snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: (doc.data().createdAt as Timestamp)?.toDate() ?? new Date(),
+        updatedAt: (doc.data().updatedAt as Timestamp)?.toDate() ?? new Date(),
+      }))
+      .filter((p) => (p as Product).stock > 0) as Product[];
   }
 
   if (filters) {
