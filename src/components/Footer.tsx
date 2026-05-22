@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 
+
 export default function Footer() {
   return (
     <footer className="bg-stone-900 text-stone-400 mt-20">
@@ -49,11 +50,8 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-stone-800 mt-10 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-stone-600">
+        <div className="border-t border-stone-800 mt-10 pt-6 text-xs text-stone-600 text-center sm:text-left">
           <p>© {new Date().getFullYear()} Solano & Co. Todos los derechos reservados.</p>
-          <Link href="/admin" className="hover:text-stone-400 transition-colors">
-            ·
-          </Link>
         </div>
       </div>
     </footer>
