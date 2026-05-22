@@ -60,8 +60,20 @@ export async function POST(req: NextRequest) {
       shipping_method: shipping.shippingMethod,
       shipping_city: shipping.city,
       shipping_province: shipping.province,
+      buyer_name: shipping.name,
       buyer_phone: shipping.phone,
       buyer_notes: shipping.notes,
+      items: JSON.stringify(items.map(({ product, quantity }) => ({
+        id: product.id,
+        name: product.name,
+        brand: product.brand,
+        price: product.price,
+        size: product.size,
+        color: product.color,
+        images: product.images.slice(0, 1),
+        stock: product.stock,
+        quantity,
+      }))),
     },
   };
 
